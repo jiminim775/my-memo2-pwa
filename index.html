@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ko" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나만의 한 줄 메모장</title>
+  
+  <!-- PWA Manifest & Theme -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3209/3209265.png">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+
+  <!-- Font Awesome Icons CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen py-6 px-4 flex flex-col items-center transition-colors duration-200">
+
+  <!-- App Container -->
+  <div class="w-full max-w-xl bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all mb-6">
+
+    <!-- Header Area -->
+    <div class="bg-gradient-to-r from-indigo-600 to-violet-600 p-5 text-white">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md">
+            <i class="fa-solid fa-note-sticky text-lg text-white"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-tight">나만의 한 줄 메모장</h1>
+            <p class="text-indigo-100 text-xs mt-0.5">스프레드시트 실시간 연동 PWA</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Dark Mode Toggle Button -->
+          <button 
+            onclick="toggleDarkMode()" 
+            id="themeToggleBtn"
+            class="w-9 h-9 bg-white/10 hover:bg-white/20 text-white rounded-xl flex items-center justify-center backdrop-blur-md transition active:scale-95"
+            title="다크 모드 전환"
+          >
+            <i id="themeIcon" class="fa-solid fa-moon text-sm"></i>
+          </button>
+
+          <!-- Email Modal Open Button -->
+          <button 
+            onclick="openEmailModal()"
+            title="오늘 기록 이메일 요약 전송"
+            class="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs px-3 py-2 rounded-xl backdrop-blur-md transition flex items-center gap-1.5 active:scale-95"
+          >
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+            <span class="hidden sm:inline">이메일 요약</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Config Box for GitHub Pages -->
+    <div id="apiUrlBox" class="hidden px-5 py-2.5 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800/50 text-xs flex items-center justify-between gap-2">
+      <span class="text-amber-800 dark:text-amber-300 font-medium shrink-0">🌐 Apps Script API URL:</span>
+      <input 
+        type="text" 
+        id="apiUrlInput" 
+        placeholder="구글 앱 스크립트 웹앱 URL 입력..."
+        class="w-full px-2 py-1 bg-white dark:bg-slate-700 border border-amber-300 dark:border-amber-700 rounded text-xs outline-none text-slate-800 dark:text-slate-100"
+      />
+      <button onclick="saveApiUrl()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shrink-0">저장</button>
+    </div>
+
+    <!-- Form Area -->
+    <div class="p-6 border-b border-slate-100 dark:border-slate-700/60">
+      <form id="memoForm" onsubmit="handleMemoSubmit(event)" class="space-y-4">
+        
+        <!-- Category & Pin Settings -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-1">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">분류:</span>
+            <select 
+              id="categorySelect"
+              class="bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none w-full transition"
+            >
+              <option value="💡 아이디어">💡 아이디어</option>
+              <option value="💼 업무">💼 업무</option>
+              <option value="👤 개인">👤 개인</option>
+              <option value="✅ 할일">✅ 할일</option>
+              <option value="📌 기타" selected>📌 기타</option>
+            </select>
+          </div>
+
+          <button 
+            type="button" 
+            id="pinToggleBtn" 
+            onclick="toggleFormPin()"
+            class="px-3 py-2 border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition"
+          >
+            <i id="pinIcon" class="fa-regular fa-star text-amber-400 text-sm"></i>
+            <span>상단 고정</span>
+          </button>
+        </div>
+
+        <!-- Memo Text Field -->
+        <div class="relative flex items-center">
+          <input 
+            type="text" 
+            id="memoInput" 
+            placeholder="메모를 입력하세요... (Ctrl + Enter 전송)" 
+            required
+            autocomplete="off"
+            class="w-full pl-4 pr-10 py-3.5 rounded-xl border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 bg-slate-50 dark:bg-slate-700 focus:bg-white dark:focus:bg-slate-700"
+          />
+          
+          <button 
+            type="button" 
+            onclick="clearInput()"
+            id="clearBtn"
+            class="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 hidden text-xs transition"
+            title="지우기"
+          >
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Save Button -->
+        <button 
+          type="submit" 
+          id="submitBtn"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-semibold py-3 rounded-xl shadow-md transition duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+        >
+          <i class="fa-solid fa-plus text-xs"></i>
+          <span id="btnText">메모 저장하기</span>
+        </button>
+      </form>
+
+      <!-- Status Alert Box -->
+      <div id="statusAlert" class="mt-4 hidden p-3 rounded-xl text-xs flex items-center gap-2 transition-all">
+        <i id="alertIcon" class="fa-solid text-sm"></i>
+        <span id="alertMessage" class="flex-1 font-medium"></span>
+      </div>
+    </div>
+
+    <!-- Filter and Search Area -->
+    <div class="p-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700/60 space-y-3">
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+        <input 
+          type="text" 
+          id="searchInput"
+          oninput="renderMemoList()"
+          placeholder="메모 검색..."
+          class="w-full pl-8 pr-4 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+        />
+      </div>
+
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+        <button onclick="setFilter('ALL')" id="filter-ALL" class="filter-btn px-2.5 py-1 rounded-full font-medium bg-indigo-600 text-white shrink-0">전체</button>
+        <button onclick="setFilter('PIN')" id="filter-PIN" class="filter-btn px-2.5 py-1 rounded-full font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 shrink-0">⭐ 중요</button>
+        <button onclick="setFilter('💡 아이디어')" id="filter-💡 아이디어" class="filter-btn px-2.5 py-1 rounded-full font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 shrink-0">💡 아이디어</button>
+        <button onclick="setFilter('💼 업무')" id="filter-💼 업무" class="filter-btn px-2.5 py-1 rounded-full font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 shrink-0">💼 업무</button>
+        <button onclick="setFilter('👤 개인')" id="filter-👤 개인" class="filter-btn px-2.5 py-1 rounded-full font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 shrink-0">👤 개인</button>
+        <button onclick="setFilter('✅ 할일')" id="filter-✅ 할일" class="filter-btn px-2.5 py-1 rounded-full font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 shrink-0">✅ 할일</button>
+      </div>
+    </div>
+
+    <!-- Memo List Section -->
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-list-ul"></i>
+          <span>메모 목록</span>
+          <span id="memoCountBadge" class="bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold px-2 py-0.5 rounded-full text-[10px]">0</span>
+        </h2>
+        <button onclick="fetchMemos()" class="text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 text-xs flex items-center gap-1 transition" title="새로고침">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+
+      <div id="memoList" class="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+        <div class="animate-pulse space-y-2">
+          <div class="h-16 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+          <div class="h-16 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-700 space-y-4">
+      <div class="flex items-center justify-between border-b dark:border-slate-700 pb-3">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-pen text-indigo-600 dark:text-indigo-400"></i> 메모 수정
+        </h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="editRowInput" />
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">카테고리</label>
+        <select id="editCategorySelect" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 text-xs rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="💡 아이디어">💡 아이디어</option>
+          <option value="💼 업무">💼 업무</option>
+          <option value="👤 개인">👤 개인</option>
+          <option value="✅ 할일">✅ 할일</option>
+          <option value="📌 기타">📌 기타</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">메모 내용</label>
+        <textarea id="editTextInput" rows="3" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 text-sm rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-medium transition">취소</button>
+        <button onclick="saveMemoEdit()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition">저장하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Modal -->
+  <div id="emailModal" class="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-100 dark:border-slate-700 space-y-4">
+      <div class="flex items-center justify-between border-b dark:border-slate-700 pb-3">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-paper-plane text-indigo-600 dark:text-indigo-400"></i> 오늘 기록 요약 발송
+        </h3>
+        <button onclick="closeEmailModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">수신 이메일 주소</label>
+        <input 
+          type="email" 
+          id="targetEmailInput" 
+          placeholder="your-email@gmail.com"
+          class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100 text-sm rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">오늘 작성한 메모 목록을 입력한 주소로 전송합니다.</p>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeEmailModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-medium transition">취소</button>
+        <button onclick="submitEmailSummary()" id="sendEmailBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition">발송하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Service Worker Register
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed: ', err));
+      });
+    }
+
+    // State Variables
+    let rawMemos = [];
+    let currentFilter = 'ALL';
+    let isFormPinned = false;
+    let gasApiUrl = localStorage.getItem('gas_api_url') || 'https://script.google.com/macros/s/AKfycbweGQeyZLCgkrJuGO8tBaBBu0ktNc0v4NtRkGSLACSn8eSCVlQfvmo4sISXcVxbkPbb0Q/exec';
+
+    // DOM Elements
+    const memoInput = document.getElementById('memoInput');
+    const categorySelect = document.getElementById('categorySelect');
+    const clearBtn = document.getElementById('clearBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const statusAlert = document.getElementById('statusAlert');
+    const alertIcon = document.getElementById('alertIcon');
+    const alertMessage = document.getElementById('alertMessage');
+    const memoList = document.getElementById('memoList');
+    const searchInput = document.getElementById('searchInput');
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      checkEnvironment();
+      fetchMemos();
+
+      memoInput.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          handleMemoSubmit(e);
+        }
+      });
+    });
+
+    // Dark Mode Toggle
+    function initTheme() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      if (savedTheme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-sun text-amber-300 text-sm';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('themeIcon').className = 'fa-solid fa-moon text-sm';
+      }
+    }
+
+    function toggleDarkMode() {
+      const htmlClass = document.documentElement.classList;
+      const themeIcon = document.getElementById('themeIcon');
+
+      if (htmlClass.contains('dark')) {
+        htmlClass.remove('dark');
+        localStorage.setItem('theme', 'light');
+        themeIcon.className = 'fa-solid fa-moon text-sm';
+      } else {
+        htmlClass.add('dark');
+        localStorage.setItem('theme', 'dark');
+        themeIcon.className = 'fa-solid fa-sun text-amber-300 text-sm';
+      }
+    }
+
+    function checkEnvironment() {
+      const isAppsScript = (typeof google !== 'undefined' && google.script && google.script.run);
+      if (!isAppsScript) {
+        document.getElementById('apiUrlBox').classList.remove('hidden');
+        if (gasApiUrl) {
+          document.getElementById('apiUrlInput').value = gasApiUrl;
+        }
+      }
+    }
+
+    function saveApiUrl() {
+      const url = document.getElementById('apiUrlInput').value.trim();
+      if (url) {
+        gasApiUrl = url;
+        localStorage.setItem('gas_api_url', url);
+        showAlert('success', 'API URL이 저장되었습니다.');
+        fetchMemos();
+      }
+    }
+
+    // Call Apps Script Backend
+    function callBackend(action, data = {}) {
+      return new Promise((resolve, reject) => {
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(res => resolve(res))
+            .withFailureHandler(err => reject(err))
+            .processAction(action, data);
+        } else if (gasApiUrl) {
+          fetch(gasApiUrl, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ action, ...data })
+          })
+          .then(res => res.json())
+          .then(json => resolve(json))
+          .catch(err => reject(err));
+        } else {
+          setTimeout(() => {
+            resolve({ success: false, message: 'Apps Script API URL을 입력해 주세요.' });
+          }, 300);
+        }
+      });
+    }
+
+    // Form Events
+    memoInput.addEventListener('input', () => {
+      clearBtn.classList.toggle('hidden', memoInput.value.trim().length === 0);
+    });
+
+    function clearInput() {
+      memoInput.value = '';
+      clearBtn.classList.add('hidden');
+      memoInput.focus();
+    }
+
+    function toggleFormPin() {
+      isFormPinned = !isFormPinned;
+      const btn = document.getElementById('pinToggleBtn');
+      const icon = document.getElementById('pinIcon');
+
+      if (isFormPinned) {
+        btn.classList.add('bg-amber-100', 'border-amber-300', 'text-amber-800', 'dark:bg-amber-900/50', 'dark:text-amber-200');
+        icon.className = 'fa-solid fa-star text-amber-500 text-sm';
+      } else {
+        btn.classList.remove('bg-amber-100', 'border-amber-300', 'text-amber-800', 'dark:bg-amber-900/50', 'dark:text-amber-200');
+        icon.className = 'fa-regular fa-star text-amber-400 text-sm';
+      }
+    }
+
+    // Memo Logic
+    async function fetchMemos() {
+      try {
+        const res = await callBackend('getMemos');
+        if (res.success) {
+          rawMemos = res.memos || [];
+          renderMemoList();
+        } else {
+          showAlert('error', res.message);
+        }
+      } catch (err) {
+        showAlert('error', '데이터 로드 실패: ' + err.toString());
+      }
+    }
+
+    function setFilter(filterType) {
+      currentFilter = filterType;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.className = 'filter-btn px-2.5 py-1 rounded-full font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 shrink-0';
+      });
+
+      const activeBtn = document.getElementById(`filter-${filterType}`);
+      if (activeBtn) {
+        activeBtn.className = 'filter-btn px-2.5 py-1 rounded-full font-medium bg-indigo-600 text-white shrink-0';
+      }
+
+      renderMemoList();
+    }
+
+    function renderMemoList() {
+      const searchKw = searchInput.value.toLowerCase().trim();
+
+      let filtered = rawMemos.filter(item => {
+        const matchesKw = item.content.toLowerCase().includes(searchKw);
+        if (!matchesKw) return false;
+
+        if (currentFilter === 'ALL') return true;
+        if (currentFilter === 'PIN') return item.isPinned;
+        return item.category === currentFilter;
+      });
+
+      filtered.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+
+      document.getElementById('memoCountBadge').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        memoList.innerHTML = `
+          <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+            <i class="fa-regular fa-folder-open text-2xl text-slate-300 dark:text-slate-600 mb-2"></i>
+            <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">기록된 메모가 없습니다.</p>
+          </div>
+        `;
+        return;
+      }
+
+      memoList.innerHTML = filtered.map(item => `
+        <div class="p-3.5 bg-white dark:bg-slate-800 border ${item.isPinned ? 'border-amber-300 dark:border-amber-600 bg-amber-50/30 dark:bg-amber-900/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl shadow-sm hover:shadow transition flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                ${item.category || '📌 기타'}
+              </span>
+              ${item.isPinned ? '<span class="text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"><i class="fa-solid fa-star text-[9px]"></i> 고정됨</span>' : ''}
+              <span class="text-[10px] text-slate-400 dark:text-slate-500">${item.time}</span>
+            </div>
+            <p class="text-sm text-slate-800 dark:text-slate-200 break-words leading-relaxed">${escapeHtml(item.content)}</p>
+          </div>
+
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="handleTogglePin(${item.row})" class="p-1.5 text-slate-400 hover:text-amber-500 transition" title="${item.isPinned ? '고정 해제' : '상단 고정'}">
+              <i class="${item.isPinned ? 'fa-solid fa-star text-amber-400' : 'fa-regular fa-star'} text-sm"></i>
+            </button>
+            <button onclick="openEditModal(${item.row}, \`${escapeHtml(item.content)}\`, '${item.category}')" class="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition" title="수정">
+              <i class="fa-solid fa-pen text-xs"></i>
+            </button>
+            <button onclick="handleDeleteMemo(${item.row})" class="p-1.5 text-slate-400 hover:text-red-500 transition" title="삭제">
+              <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function handleMemoSubmit(event) {
+      event.preventDefault();
+      const memoText = memoInput.value.trim();
+      const category = categorySelect.value;
+
+      if (!memoText) return;
+
+      setLoading(true);
+      hideAlert();
+
+      try {
+        const res = await callBackend('addMemo', { memoText, category, isPinned: isFormPinned });
+        setLoading(false);
+        if (res.success) {
+          showAlert('success', res.message);
+          memoInput.value = '';
+          clearBtn.classList.add('hidden');
+          if (isFormPinned) toggleFormPin();
+          fetchMemos();
+        } else {
+          showAlert('error', res.message);
+        }
+      } catch (err) {
+        setLoading(false);
+        showAlert('error', '전송 실패: ' + err.toString());
+      }
+    }
+
+    async function handleDeleteMemo(rowNum) {
+      try {
+        const res = await callBackend('deleteMemo', { rowNum });
+        if (res.success) {
+          showAlert('success', res.message);
+          fetchMemos();
+        } else {
+          showAlert('error', res.message);
+        }
+      } catch (err) {
+        showAlert('error', '삭제 실패: ' + err.toString());
+      }
+    }
+
+    async function handleTogglePin(rowNum) {
+      try {
+        const res = await callBackend('togglePin', { rowNum });
+        if (res.success) {
+          fetchMemos();
+        }
+      } catch (err) {
+        showAlert('error', '상태 변경 실패');
+      }
+    }
+
+    // Modal Operations
+    function openEditModal(row, content, category) {
+      document.getElementById('editRowInput').value = row;
+      document.getElementById('editTextInput').value = content;
+      document.getElementById('editCategorySelect').value = category || '📌 기타';
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+    }
+
+    async function saveMemoEdit() {
+      const rowNum = parseInt(document.getElementById('editRowInput').value);
+      const newText = document.getElementById('editTextInput').value.trim();
+      const newCat = document.getElementById('editCategorySelect').value;
+
+      if (!newText) return;
+
+      try {
+        const res = await callBackend('updateMemo', { rowNum, newText, newCategory: newCat });
+        closeEditModal();
+        if (res.success) {
+          showAlert('success', res.message);
+          fetchMemos();
+        } else {
+          showAlert('error', res.message);
+        }
+      } catch (err) {
+        showAlert('error', '수정 실패');
+      }
+    }
+
+    function openEmailModal() {
+      document.getElementById('emailModal').classList.remove('hidden');
+    }
+
+    function closeEmailModal() {
+      document.getElementById('emailModal').classList.add('hidden');
+    }
+
+    async function submitEmailSummary() {
+      const emailInput = document.getElementById('targetEmailInput').value.trim();
+      const sendBtn = document.getElementById('sendEmailBtn');
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = '발송 중...';
+
+      try {
+        const res = await callBackend('sendDailySummaryEmail', { targetEmail: emailInput });
+        sendBtn.disabled = false;
+        sendBtn.textContent = '발송하기';
+        closeEmailModal();
+
+        showAlert(res.success ? 'success' : 'error', res.message);
+      } catch (err) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = '발송하기';
+        showAlert('error', '이메일 발송 오류: ' + err.toString());
+      }
+    }
+
+    // UI Helpers
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      btnText.textContent = isLoading ? '저장 중...' : '메모 저장하기';
+      submitBtn.querySelector('i').className = isLoading ? 'fa-solid fa-spinner animate-spin text-xs' : 'fa-solid fa-plus text-xs';
+    }
+
+    function showAlert(type, message) {
+      statusAlert.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'bg-red-50', 'text-red-700', 'border-red-200', 'dark:bg-emerald-900/30', 'dark:text-emerald-300', 'dark:bg-red-900/30', 'dark:text-red-300');
+      statusAlert.classList.add('border');
+
+      if (type === 'success') {
+        statusAlert.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'dark:bg-emerald-900/30', 'dark:text-emerald-300');
+        alertIcon.className = 'fa-solid fa-circle-check text-emerald-500 text-sm';
+      } else {
+        statusAlert.classList.add('bg-red-50', 'text-red-700', 'border-red-200', 'dark:bg-red-900/30', 'dark:text-red-300');
+        alertIcon.className = 'fa-solid fa-circle-exclamation text-red-500 text-sm';
+      }
+
+      alertMessage.textContent = message;
+    }
+
+    function hideAlert() {
+      statusAlert.classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
